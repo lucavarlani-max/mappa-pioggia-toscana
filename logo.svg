@@ -1,0 +1,85 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Logo LV">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b5788"/>
+      <stop offset="1" stop-color="#173a60"/>
+    </linearGradient>
+    <linearGradient id="hill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#37ab7a"/>
+      <stop offset="1" stop-color="#25835c"/>
+    </linearGradient>
+    <linearGradient id="drop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#dff0ff"/>
+      <stop offset="1" stop-color="#a9d4ff"/>
+    </linearGradient>
+    <linearGradient id="river" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9fccee"/>
+      <stop offset="1" stop-color="#cfe8fb"/>
+    </linearGradient>
+    <linearGradient id="cloud" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8f9fb0"/>
+      <stop offset="1" stop-color="#6d7e91"/>
+    </linearGradient>
+    <clipPath id="disc"><circle cx="256" cy="256" r="238"/></clipPath>
+  </defs>
+
+  <!-- disco cielo -->
+  <circle cx="256" cy="256" r="238" fill="url(#sky)"/>
+
+  <g clip-path="url(#disc)">
+    <!-- luna -->
+    <g>
+      <circle cx="392" cy="120" r="24" fill="#f3ecc9"/>
+      <circle cx="403" cy="112" r="21" fill="#255081"/>
+    </g>
+    <!-- stelle -->
+    <circle cx="356" cy="86" r="2.6" fill="#ffffff" opacity="0.7"/>
+    <circle cx="430" cy="152" r="2.2" fill="#ffffff" opacity="0.6"/>
+    <circle cx="150" cy="96" r="2.2" fill="#ffffff" opacity="0.5"/>
+
+    <!-- collina -->
+    <path d="M-20,372 Q150,326 256,356 Q380,392 540,352 L540,540 L-20,540 Z" fill="url(#hill)"/>
+    <path d="M-20,372 Q150,326 256,356 Q380,392 540,352" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="4"/>
+
+    <!-- fiume stilizzato -->
+    <path d="M316,356 C302,396 326,424 308,460 C297,483 280,499 264,512 L304,512 C322,497 336,472 324,442 C310,410 338,388 330,356 Z" fill="url(#river)"/>
+    <path d="M322,360 C309,398 331,426 314,460 C305,482 291,498 282,510" fill="none" stroke="#eef7ff" stroke-width="4.5" stroke-linecap="round" opacity="0.8"/>
+
+    <!-- albero (pino) sulla collina -->
+    <g transform="translate(104,344)">
+      <rect x="-5" y="6" width="10" height="22" rx="3" fill="#7a4a2b"/>
+      <path d="M-24,14 L0,-22 L24,14 Z" fill="#1f6e4d"/>
+      <path d="M-19,0 L0,-33 L19,0 Z" fill="#25835c"/>
+      <path d="M-13,-15 L0,-42 L13,-15 Z" fill="#2f9e6f"/>
+    </g>
+
+    <!-- nuvola temporalesca (in alto al centro) -->
+    <g>
+      <circle cx="216" cy="98" r="19" fill="url(#cloud)"/>
+      <circle cx="246" cy="82" r="25" fill="url(#cloud)"/>
+      <circle cx="278" cy="98" r="19" fill="url(#cloud)"/>
+      <rect x="200" y="92" width="94" height="26" rx="13" fill="url(#cloud)"/>
+      <rect x="206" y="106" width="82" height="12" rx="6" fill="#5c6c7e"/>
+    </g>
+    <!-- fulmine -->
+    <path d="M252,116 L232,156 L248,156 L228,196 L262,148 L246,148 Z" fill="#ffd23f" stroke="#e0a800" stroke-width="1.5" stroke-linejoin="round"/>
+  </g>
+
+  <!-- goccia che cade nella V -->
+  <path d="M320,74 C336,102 346,116 346,132 a26,26 0 1,1 -52,0 C294,116 304,102 320,74 Z" fill="url(#drop)"/>
+  <ellipse cx="310" cy="128" rx="6" ry="9" fill="#ffffff" opacity="0.55"/>
+
+  <!-- monogramma LV (spaziato) -->
+  <g fill="none" stroke="#f5f0e4" stroke-width="42" stroke-linecap="round" stroke-linejoin="round">
+    <!-- L -->
+    <path d="M150,168 V325"/>
+    <path d="M150,325 H218"/>
+    <!-- V -->
+    <path d="M275,172 L320,325"/>
+    <path d="M365,172 L320,325"/>
+  </g>
+
+  <!-- anello emblema -->
+  <circle cx="256" cy="256" r="238" fill="none" stroke="#f5f0e4" stroke-width="12"/>
+  <circle cx="256" cy="256" r="216" fill="none" stroke="#f5f0e4" stroke-width="2.5" stroke-opacity="0.5"/>
+</svg>
