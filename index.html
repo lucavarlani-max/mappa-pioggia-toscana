@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mappa Pluviometrica Toscana — dati SIR</title>
+<meta name="description" content="Mappa interattiva delle precipitazioni in Toscana con dati reali dei pluviometri del Servizio Idrologico Regionale. Pianifica le uscite funghi.">
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="logo_180.png">
+<meta property="og:title" content="Mappa Pluviometrica Toscana">
+<meta property="og:description" content="Precipitazioni reali dei pluviometri SIR in tutta la Toscana. Per pianificare le uscite funghi.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+  :root{ --brand:#1b3f6e; --brand2:#245a94; --bg:#eef2f6; --panel:#fff; --ink:#12212f; --muted:#5c7289; --line:#dfe6ee; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+  #app{display:flex;flex-direction:column;min-height:100vh}
+  header.top{background:var(--brand);color:#fff;display:flex;align-items:center;gap:12px;padding:8px 14px;flex:0 0 auto}
+  header.top .logo{font-size:20px}
+  header.top h1{font-size:15px;margin:0;font-weight:700;line-height:1.1}
+  header.top h1 small{display:block;font-weight:400;opacity:.85;font-size:11px}
+  header.top .spacer{flex:1}
+  header.top .upd{font-size:11px;opacity:.85;text-align:right;white-space:nowrap}
+  .main{height:80vh;display:flex;min-height:320px}
+  .radar-wrap{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px 14px;background:#f4f7fa;border-top:1px solid var(--line)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column}
+  .card h3{margin:0 0 4px;font-size:14px;color:var(--brand)}
+  .card p.sub{margin:0 0 10px;font-size:12px;color:var(--muted)}
+  .card .chartbox{position:relative;height:340px}
+  #radarMap{height:340px;border-radius:8px;overflow:hidden}
+  .radar-bar{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+  .radar-bar button{border:1px solid var(--line);background:#f7fafc;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600}
+  .rl{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .rl span{display:inline-flex;align-items:center;gap:4px}
+  .rl i{width:12px;height:12px;border-radius:3px;display:inline-block}
+  @media (max-width:760px){ .radar-wrap{grid-template-columns:1fr} }
+  .side{width:300px;flex:0 0 300px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto}
+  #map{flex:1;min-width:0}
+  .block{padding:12px 14px;border-bottom:1px solid var(--line)}
+  .block h2{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 8px}
+  .periods{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .periods button{border:1px solid var(--line);background:#f7fafc;color:var(--ink);padding:7px 4px;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600;transition:.12s}
+  .periods button:hover{border-color:var(--brand2)}
+  .periods button.active{background:var(--brand);border-color:var(--brand);color:#fff}
+  select.prov{width:100%;padding:7px;border:1px solid var(--line);border-radius:7px;font-size:13px;background:#f7fafc;margin-top:2px}
+  .custom{margin-top:8px;font-size:12px}
+  .custom summary{cursor:pointer;color:var(--brand2);font-weight:600}
+  .custom .row{display:flex;gap:6px;margin-top:8px;align-items:end;flex-wrap:wrap}
+  .custom label{display:flex;flex-direction:column;font-size:11px;color:var(--muted);gap:2px}
+  .custom input{border:1px solid var(--line);border-radius:6px;padding:5px;font-size:12px}
+  .custom button{background:var(--brand2);color:#fff;border:0;border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer;font-weight:600}
+  .custom button:disabled{background:#b7c3cf;cursor:not-allowed}
+  .hint{font-size:11px;color:var(--muted);margin-top:6px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center}
+  .stat{background:#f4f8fb;border:1px solid var(--line);border-radius:8px;padding:8px 4px}
+  .stat .v{font-size:16px;font-weight:800;color:var(--brand)}
+  .stat .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+  .legend{display:flex;flex-direction:column;gap:4px}
+  .legend .item{display:flex;align-items:center;gap:8px;font-size:12px}
+  .legend .sw{width:16px;height:16px;border-radius:4px;border:1px solid rgba(0,0,0,.15);flex:0 0 auto}
+  .rank{flex:1}
+  .rank ol{list-style:none;margin:0;padding:0}
+  .rank li{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid #eef2f6;cursor:pointer;font-size:13px}
+  .rank li:hover{background:#f4f8fb}
+  .rank .pos{width:22px;color:var(--muted);font-size:11px;text-align:right}
+  .rank .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rank .pv{color:var(--muted);font-size:11px}
+  .rank .mm{font-weight:800;color:var(--brand)}
+  .rank .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto;border:1px solid rgba(0,0,0,.2)}
+  footer.bot{flex:0 0 auto;background:#0f2540;color:#c7d5e5;font-size:11px;padding:6px 14px;text-align:center}
+  footer.bot a{color:#9fc4ea}
+  .lab{background:rgba(255,255,255,.92);border:1px solid var(--brand);border-radius:8px;font-weight:700;font-size:11px;color:var(--brand);padding:1px 5px;white-space:nowrap}
+  .lab-in{background:transparent!important;border:none!important;box-shadow:none!important;color:#fff;font-weight:800;font-size:9px;line-height:1;padding:0!important;margin:0;text-shadow:0 0 2px rgba(0,0,0,.95),0 0 3px rgba(0,0,0,.9);pointer-events:none}
+  .lab-in::before{display:none!important}
+  .err{position:absolute;inset:0;background:rgba(238,242,246,.95);display:none;align-items:center;justify-content:center;z-index:1200;font-weight:700;color:#b23;padding:20px;text-align:center}
+  .err.on{display:flex}
+  @media (max-width:760px){
+    .main{flex-direction:column}
+    .side{width:100%;flex:1 1 auto;max-height:46%;border-right:0;border-bottom:1px solid var(--line)}
+    #map{flex:1 1 auto;min-height:220px}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <img class="logo" src="logo.svg" alt="LV" width="36" height="36" style="border-radius:9px;flex:0 0 auto">
+    <h1>Mappa Pluviometrica Toscana<small>Pluviometri reali · Servizio Idrologico Regionale</small></h1>
+    <span class="spacer"></span>
+    <div class="upd">Ultimo dato<br><b id="updDate">—</b></div>
+  </header>
+
+  <div class="main">
+    <aside class="side">
+      <div class="block">
+        <h2>🕒 Periodo</h2>
+        <div class="periods" id="periods">
+          <button data-p="1">Ieri</button>
+          <button data-p="7">7 giorni</button>
+          <button data-p="10">10 giorni</button>
+          <button data-p="15">15 giorni</button>
+          <button data-p="20">20 giorni</button>
+          <button data-p="30" class="active">30 giorni</button>
+        </div>
+        <details class="custom">
+          <summary>📅 Date personalizzate</summary>
+          <div class="row">
+            <label>Inizio<input type="date" id="d1"></label>
+            <label>Fine<input type="date" id="d2"></label>
+            <button id="applyCustom">Applica</button>
+          </div>
+          <div class="hint" id="customHint"></div>
+        </details>
+      </div>
+
+      <div class="block">
+        <h2>📍 Provincia</h2>
+        <select class="prov" id="prov"><option value="">Tutta la Toscana</option></select>
+      </div>
+
+      <div class="block">
+        <h2>📊 Statistiche</h2>
+        <div class="stats">
+          <div class="stat"><div class="v" id="stCount">–</div><div class="l">Staz.</div></div>
+          <div class="stat"><div class="v" id="stMax">–</div><div class="l">Max</div></div>
+          <div class="stat"><div class="v" id="stMean">–</div><div class="l">Media</div></div>
+          <div class="stat"><div class="v" id="stMin">–</div><div class="l">Min</div></div>
+        </div>
+      </div>
+
+      <div class="block">
+        <h2>💧 Legenda (mm cumulati)</h2>
+        <div class="legend" id="legend"></div>
+      </div>
+
+      <div class="block rank">
+        <h2>🏆 Classifica</h2>
+        <ol id="rank"></ol>
+      </div>
+    </aside>
+
+    <div id="map" style="position:relative">
+      <div class="err" id="err"></div>
+    </div>
+  </div>
+
+  <section class="radar-wrap">
+    <div class="card">
+      <h3>📊 Prime 10 stazioni</h3>
+      <p class="sub" id="barsSub">Stazioni con più pioggia nel periodo selezionato</p>
+      <div class="chartbox"><canvas id="bars"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>🌧 Radar meteo live</h3>
+      <p class="sub">Precipitazioni in tempo reale (RainViewer) — <span id="radarTime">—</span></p>
+      <div id="radarMap"></div>
+      <div class="radar-bar">
+        <button id="radarPlay">⏸ Pausa</button>
+        <span id="radarStatus"></span>
+        <span class="rl">
+          <span><i style="background:#8ec9ff"></i>debole</span>
+          <span><i style="background:#2f7bd6"></i>moderata</span>
+          <span><i style="background:#f2d600"></i>forte</span>
+          <span><i style="background:#e23"></i>intensa</span>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <footer class="bot">
+    Dati: <b>SIR — Regione Toscana</b> (<a href="http://www.sir.toscana.it/" target="_blank" rel="noopener">sir.toscana.it</a>, CC-BY-SA) ·
+    Mappa: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> ·
+    Radar: <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a> ·
+    Progetto dimostrativo
+  </footer>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="dati.js"></script>
+<script>
+const D = window.DATI_PIOGGIA;
+const PROV_NAMI = {AR:"Arezzo",FI:"Firenze",GR:"Grosseto",LI:"Livorno",LU:"Lucca",MS:"Massa-Carrara",PI:"Pisa",PO:"Prato",PT:"Pistoia",SI:"Siena"};
+
+const SCALE = [
+  {min:0,c:"#f2f7fb",lbl:"0 – 5"},{min:5,c:"#cfe3f3",lbl:"5 – 10"},
+  {min:10,c:"#9ecae1",lbl:"10 – 20"},{min:20,c:"#6baed6",lbl:"20 – 40"},
+  {min:40,c:"#4292c6",lbl:"40 – 70"},{min:70,c:"#2171b5",lbl:"70 – 100"},
+  {min:100,c:"#08519c",lbl:"100 – 150"},{min:150,c:"#08306b",lbl:"150 – 200"},
+  {min:200,c:"#54278f",lbl:"200+"}
+];
+const colorFor = mm => { let c=SCALE[0].c; for(const s of SCALE) if(mm>=s.min) c=s.c; return c; };
+const radiusFor = mm => Math.max(5, Math.min(16, 5 + Math.sqrt(mm)*0.8));
+
+const map = L.map('map',{zoomControl:true}).setView([43.4,11.05],8);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
+const layer = L.layerGroup().addTo(map);
+const markerByKey = {};
+let firstRender = true;
+
+(function(){const el=document.getElementById('legend');SCALE.slice().reverse().forEach(s=>{const d=document.createElement('div');d.className='item';d.innerHTML=`<span class="sw" style="background:${s.c}"></span><span>${s.lbl} mm</span>`;el.appendChild(d);});})();
+
+// popola filtro province
+(function(){const sel=document.getElementById('prov');const provs=[...new Set(D.stazioni.map(s=>s.prov))].sort();provs.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=`${PROV_NAMI[p]||p} (${p})`;sel.appendChild(o);});})();
+
+function fail(msg){const e=document.getElementById('err');e.classList.add('on');e.textContent=msg;}
+
+function sumCustom(st,start,end){
+  if(!D.date || !st.v) return null;
+  let s=0,any=false;
+  for(let i=0;i<D.date.length;i++){const d=D.date[i];if(d>=start&&d<=end){const v=st.v[i];if(v!=null){s+=v;any=true;}}}
+  return any? Math.round(s*10)/10 : 0;
+}
+
+let currentGetMM=(st)=>st.mm["30"], currentLabel="ultimi 30 giorni";
+
+function render(){
+  layer.clearLayers();
+  const pf=document.getElementById('prov').value;
+  const rows = D.stazioni
+    .filter(s=>!pf || s.prov===pf)
+    .map(st=>({...st, val:currentGetMM(st)}))
+    .filter(r=>r.val!=null);
+  if(!rows.length){document.getElementById('rank').innerHTML='';return;}
+  const pts=[];
+  const top30=new Set(rows.slice().sort((a,b)=>b.val-a.val).slice(0,30).map(r=>r.nome+'|'+r.prov));
+  rows.forEach(r=>{
+    const key=r.nome+'|'+r.prov;
+    const lab=top30.has(key);
+    const m=L.circleMarker([r.lat,r.lon],{radius: lab?Math.max(radiusFor(r.val),11):radiusFor(r.val),color:"#0f2540",weight:1,fillColor:colorFor(r.val),fillOpacity:.92}).addTo(layer);
+    if(lab){
+      m.bindTooltip(String(Math.round(r.val)),{permanent:true,direction:"center",className:"lab-in"});
+    }else{
+      m.bindTooltip(`${r.nome}: ${r.val} mm`,{direction:"top",className:"lab",offset:[0,-4]});
+    }
+    m.bindPopup(`<b>${r.nome}</b> <small>(${r.prov})</small><br>Comune: ${r.com}<br>💧 <b>${r.val} mm</b> — ${currentLabel}<br>⛰ Quota: ${r.q} m`);
+    markerByKey[key]=m; pts.push([r.lat,r.lon]);
+  });
+  const vals=rows.map(r=>r.val);
+  document.getElementById('stCount').textContent=rows.length;
+  document.getElementById('stMax').textContent=Math.max(...vals).toFixed(0);
+  document.getElementById('stMean').textContent=(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(0);
+  document.getElementById('stMin').textContent=Math.min(...vals).toFixed(0);
+  const ol=document.getElementById('rank');ol.innerHTML='';
+  rows.slice().sort((a,b)=>b.val-a.val).forEach((r,i)=>{
+    const li=document.createElement('li');
+    li.innerHTML=`<span class="pos">${i+1}</span><span class="dot" style="background:${colorFor(r.val)}"></span><span class="nm">${r.nome}</span><span class="pv">${r.prov}</span><span class="mm">${r.val}</span>`;
+    li.onclick=()=>{map.setView([r.lat,r.lon],11);markerByKey[r.nome+'|'+r.prov].openPopup();};
+    ol.appendChild(li);
+  });
+  if(firstRender && pts.length){map.fitBounds(pts,{padding:[20,20]});firstRender=false;}
+  else if(pf && pts.length){map.fitBounds(pts,{padding:[30,30]});}
+  updateBars(rows);
+}
+
+/* ---- Istogramma: prime 10 stazioni nel periodo selezionato ---- */
+let barsChart=null;
+function updateBars(rows){
+  if(typeof Chart==='undefined') return;
+  const top=rows.slice().sort((a,b)=>b.val-a.val).slice(0,10);
+  document.getElementById('barsSub').textContent = `Prime 10 stazioni — ${currentLabel}`;
+  const labels=top.map(r=>r.nome);
+  const data=top.map(r=>r.val);
+  const colors=top.map(r=>colorFor(r.val));
+  if(barsChart){
+    barsChart.data.labels=labels;
+    barsChart.data.datasets[0].data=data;
+    barsChart.data.datasets[0].backgroundColor=colors;
+    barsChart.update();
+    return;
+  }
+  barsChart=new Chart(document.getElementById('bars'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'mm',data,backgroundColor:colors,borderWidth:0,borderRadius:3}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      scales:{x:{beginAtZero:true,title:{display:true,text:'mm cumulati'},grid:{color:'#e3e9ef'}},
+        y:{ticks:{font:{size:11}},grid:{display:false}}},
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>`${c.formattedValue} mm`}}}}
+  });
+}
+
+/* ---- Radar meteo live (RainViewer) ---- */
+async function initRadar(){
+  const rmap=L.map('radarMap',{zoomControl:true,attributionControl:false}).setView([43.4,11.0],7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:12}).addTo(rmap);
+  const statusEl=document.getElementById('radarStatus');
+  const timeEl=document.getElementById('radarTime');
+  let host='',frames=[],cur=null,playing=true,i=0,timer=null;
+  try{
+    const j=await (await fetch('https://api.rainviewer.com/public/weather-maps.json')).json();
+    host=j.host; frames=(j.radar.past||[]).concat(j.radar.nowcast||[]);
+  }catch(e){ statusEl.textContent='Radar non disponibile (connessione assente).'; return; }
+  if(!frames.length){ statusEl.textContent='Nessun frame radar disponibile.'; return; }
+  function show(k){
+    const fr=frames[k]; if(!fr)return;
+    const nl=L.tileLayer(`${host}${fr.path}/256/{z}/{x}/{y}/2/1_1.png`,{opacity:0.65,maxZoom:12}).addTo(rmap);
+    if(cur) rmap.removeLayer(cur);
+    cur=nl;
+    timeEl.textContent=new Date(fr.time*1000).toLocaleString('it-IT',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});
+  }
+  i=frames.length-1; show(i);
+  function tick(){ i=(i+1)%frames.length; show(i); }
+  timer=setInterval(()=>{ if(playing) tick(); },700);
+  document.getElementById('radarPlay').onclick=function(){
+    playing=!playing; this.textContent=playing?'⏸ Pausa':'▶ Play';
+  };
+}
+
+function showPeriod(p){
+  currentGetMM=(st)=> (st.mm && st.mm[p]!=null)? st.mm[p] : null;
+  currentLabel = p==1? "ieri" : `ultimi ${p} giorni`;
+  render();
+}
+document.querySelectorAll('#periods button').forEach(btn=>{
+  btn.onclick=()=>{document.querySelectorAll('#periods button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');showPeriod(+btn.dataset.p);};
+});
+document.getElementById('prov').onchange=render;
+
+const hasDaily = !!(D.date && D.stazioni[0] && D.stazioni[0].v);
+const btnCustom=document.getElementById('applyCustom');
+if(hasDaily){
+  document.getElementById('d1').value=D.date[0];
+  document.getElementById('d2').value=D.date[D.date.length-1];
+  document.getElementById('customHint').textContent=`Dati giornalieri dal ${D.date[0]} al ${D.date[D.date.length-1]}.`;
+  btnCustom.onclick=()=>{
+    const s=document.getElementById('d1').value,e=document.getElementById('d2').value;
+    if(!s||!e||s>e){alert("Intervallo non valido");return;}
+    document.querySelectorAll('#periods button').forEach(b=>b.classList.remove('active'));
+    currentGetMM=(st)=>sumCustom(st,s,e); currentLabel=`${s} → ${e}`; render();
+  };
+}else{
+  btnCustom.disabled=true;
+  document.getElementById('customHint').innerHTML="Lo snapshot include solo i periodi predefiniti. Per le date libere esegui <b>aggiorna_dati.py</b> (genera i dati giornalieri).";
+}
+
+if(!D || !D.stazioni || !D.stazioni.length){
+  fail("Dati non trovati. Tieni dati.js nella stessa cartella di index.html.");
+}else{
+  document.getElementById('updDate').textContent = D.ultimo_giorno ? D.ultimo_giorno.split('-').reverse().join('/') : '—';
+  showPeriod(30);
+  initRadar();
+}
+</script>
+</body>
+</html>
