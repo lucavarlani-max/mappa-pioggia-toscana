@@ -192,7 +192,7 @@ def main():
 
     log("Scarico le serie giornaliere (puo' richiedere qualche minuto)...")
     series = {}
-    with ThreadPoolExecutor(max_workers=4) as ex:
+    with ThreadPoolExecutor(max_workers=12) as ex:
         for cod, daily in ex.map(lambda s: fetch_series(s, cutoff), stations):
             series[cod] = daily
 
