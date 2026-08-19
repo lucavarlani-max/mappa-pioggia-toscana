@@ -1,0 +1,39 @@
+name: Aggiorna dati pioggia (SIR Toscana)
+
+on:
+  schedule:
+    - cron: '10 5 * * *'   # ~07:10 ora italiana
+  workflow_dispatch:        # avvio manuale dal tab Actions
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aggiorna-dati
+  cancel-in-progress: false
+
+jobs:
+  aggiorna:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installa dipendenze
+        run: pip install requests
+
+      - name: Scarica e rigenera i dati
+        run: python aggiorna_dati.py
+
+      - name: Pubblica se ci sono novita'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add stations.json dati.js
+          git diff --cached --quiet || git commit -m "Aggiornamento automatico dati pioggia"
+          git push
