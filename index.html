@@ -346,7 +346,11 @@ function render(){
       const dslTxt = r.dsl==null? '—' : (r.dsl==0?'oggi/ieri':`${r.dsl} gg fa`);
       m.bindPopup(`<b>${r.nome}</b> <small>(${r.prov})</small><br>Comune: ${r.com}<br>🍄 Indice: <b>${r.val}/100</b>${r.val>=IDEAL?' — <b style="color:#2f8f2f">ideale</b>':''}<br>💧 Pioggia 15 gg: ${r.rain15} mm<br>⏱ Ultima pioggia: ${dslTxt}<br>⛰ Quota: ${r.q} m`);
     }else{
-      m.bindPopup(`<b>${r.nome}</b> <small>(${r.prov})</small><br>Comune: ${r.com}<br>💧 <b>${r.val} mm</b> — ${currentLabel}<br>⛰ Quota: ${r.q} m`);
+      const fi=fungIndex(r);
+      const fl = fi
+        ? `<br>🍄 Indice funghi: <b>${fi.score}/100</b>${fi.score>=IDEAL?' — <b style="color:#2f8f2f">ideale</b>':''}`
+        : `<br><span style="color:#8a94a0">🍄 Indice funghi: n/d${isUrbanoFunghi(r)?' (centro urbano/pianura)':''}</span>`;
+      m.bindPopup(`<b>${r.nome}</b> <small>(${r.prov})</small><br>Comune: ${r.com}<br>💧 <b>${r.val} mm</b> — ${currentLabel}<br>⛰ Quota: ${r.q} m${fl}`);
     }
     markerByKey[key]=m; pts.push([r.lat,r.lon]);
   });
