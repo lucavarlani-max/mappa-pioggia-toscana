@@ -8,12 +8,17 @@
 <link rel="icon" type="image/svg+xml" href="logo.svg">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="logo_180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1b3f6e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Piogge Toscana">
 <meta property="og:title" content="Mappa Pluviometrica Toscana">
 <meta property="og:description" content="Precipitazioni reali dei pluviometri SIR in tutta la Toscana. Per pianificare le uscite funghi.">
 <meta property="og:type" content="website">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <style>
-  :root{ --brand:#1b3f6e; --brand2:#245a94; --bg:#eef2f6; --panel:#fff; --ink:#12212f; --muted:#5c7289; --line:#dfe6ee; }
+  :root{ --brand:#1b3f6e; --brand2:#245a94; --bg:#eef2f6; --panel:#fff; --ink:#12212f; --muted:#5c7289; --line:#dfe6ee; --fung:#2f8f2f; }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg)}
   #app{display:flex;flex-direction:column;min-height:100vh}
@@ -40,10 +45,15 @@
   #map{flex:1;min-width:0}
   .block{padding:12px 14px;border-bottom:1px solid var(--line)}
   .block h2{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 8px}
+  .block.dim{opacity:.4;pointer-events:none}
   .periods{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
   .periods button{border:1px solid var(--line);background:#f7fafc;color:var(--ink);padding:7px 4px;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600;transition:.12s}
   .periods button:hover{border-color:var(--brand2)}
   .periods button.active{background:var(--brand);border-color:var(--brand);color:#fff}
+  .modes{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .modes button{border:1px solid var(--line);background:#f7fafc;color:var(--ink);padding:8px 4px;border-radius:7px;font-size:12.5px;cursor:pointer;font-weight:700;transition:.12s}
+  .modes button.active{background:var(--fung);border-color:var(--fung);color:#fff}
+  .modes button[data-m="mm"].active{background:var(--brand);border-color:var(--brand)}
   select.prov{width:100%;padding:7px;border:1px solid var(--line);border-radius:7px;font-size:13px;background:#f7fafc;margin-top:2px}
   .custom{margin-top:8px;font-size:12px}
   .custom summary{cursor:pointer;color:var(--brand2);font-weight:600}
@@ -69,6 +79,13 @@
   .rank .pv{color:var(--muted);font-size:11px}
   .rank .mm{font-weight:800;color:var(--brand)}
   .rank .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto;border:1px solid rgba(0,0,0,.2)}
+  .fungFI ol{list-style:none;margin:0;padding:0}
+  .fungFI li{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid #eef2f6;cursor:pointer;font-size:13px}
+  .fungFI li:hover{background:#f1f8ef}
+  .fungFI .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .fungFI .cm{color:var(--muted);font-size:11px}
+  .fungFI .sc{font-weight:800;color:var(--fung);min-width:26px;text-align:right}
+  .fungFI .dot{width:11px;height:11px;border-radius:50%;flex:0 0 auto;border:1px solid rgba(0,0,0,.2)}
   footer.bot{flex:0 0 auto;background:#0f2540;color:#c7d5e5;font-size:11px;padding:6px 14px;text-align:center}
   footer.bot a{color:#9fc4ea}
   .lab{background:rgba(255,255,255,.92);border:1px solid var(--brand);border-radius:8px;font-weight:700;font-size:11px;color:var(--brand);padding:1px 5px;white-space:nowrap}
@@ -76,6 +93,8 @@
   .lab-in::before{display:none!important}
   .err{position:absolute;inset:0;background:rgba(238,242,246,.95);display:none;align-items:center;justify-content:center;z-index:1200;font-weight:700;color:#b23;padding:20px;text-align:center}
   .err.on{display:flex}
+  @keyframes fpulse{0%{transform:scale(1);opacity:.9}70%{transform:scale(2.4);opacity:0}100%{opacity:0}}
+  .fring{border-radius:50%;box-shadow:0 0 0 rgba(184,134,11,.6)}
   @media (max-width:760px){
     .main{flex-direction:column}
     .side{width:100%;flex:1 1 auto;max-height:46%;border-right:0;border-bottom:1px solid var(--line)}
@@ -95,6 +114,15 @@
   <div class="main">
     <aside class="side">
       <div class="block">
+        <h2>🗺 Visualizzazione</h2>
+        <div class="modes" id="modes">
+          <button data-m="mm" class="active">Pioggia (mm)</button>
+          <button data-m="fung">Indice funghi 🍄</button>
+        </div>
+        <div class="hint" id="modeHint">Colore per pioggia cumulata nel periodo scelto.</div>
+      </div>
+
+      <div class="block" id="periodBlock">
         <h2>🕒 Periodo</h2>
         <div class="periods" id="periods">
           <button data-p="1">Ieri</button>
@@ -120,23 +148,29 @@
         <select class="prov" id="prov"><option value="">Tutta la Toscana</option></select>
       </div>
 
+      <div class="block fungFI" id="fungFIblock">
+        <h2>🍄 Zone ideali ora — Firenze</h2>
+        <ol id="fungFI"></ol>
+        <div class="hint" id="fungFIhint"></div>
+      </div>
+
       <div class="block">
         <h2>📊 Statistiche</h2>
         <div class="stats">
           <div class="stat"><div class="v" id="stCount">–</div><div class="l">Staz.</div></div>
-          <div class="stat"><div class="v" id="stMax">–</div><div class="l">Max</div></div>
+          <div class="stat"><div class="v" id="stMax">–</div><div class="l" id="lMax">Max</div></div>
           <div class="stat"><div class="v" id="stMean">–</div><div class="l">Media</div></div>
-          <div class="stat"><div class="v" id="stMin">–</div><div class="l">Min</div></div>
+          <div class="stat"><div class="v" id="stMin">–</div><div class="l" id="lMin">Min</div></div>
         </div>
       </div>
 
       <div class="block">
-        <h2>💧 Legenda (mm cumulati)</h2>
+        <h2 id="legendTitle">💧 Legenda (mm cumulati)</h2>
         <div class="legend" id="legend"></div>
       </div>
 
       <div class="block rank">
-        <h2>🏆 Classifica</h2>
+        <h2 id="rankTitle">🏆 Classifica</h2>
         <ol id="rank"></ol>
       </div>
     </aside>
@@ -148,7 +182,7 @@
 
   <section class="radar-wrap">
     <div class="card">
-      <h3>📊 Prime 10 stazioni</h3>
+      <h3 id="barsTitle">📊 Prime 10 stazioni</h3>
       <p class="sub" id="barsSub">Stazioni con più pioggia nel periodo selezionato</p>
       <div class="chartbox"><canvas id="bars"></canvas></div>
     </div>
@@ -173,10 +207,9 @@
     Dati: <b>SIR — Regione Toscana</b> (<a href="http://www.sir.toscana.it/" target="_blank" rel="noopener">sir.toscana.it</a>, CC-BY-SA) ·
     Mappa: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> ·
     Radar: <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a> ·
-    Progetto dimostrativo
+    Indice funghi: stima indicativa, non una garanzia
   </footer>
 </div>
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="dati.js"></script>
@@ -194,13 +227,66 @@ const SCALE = [
 const colorFor = mm => { let c=SCALE[0].c; for(const s of SCALE) if(mm>=s.min) c=s.c; return c; };
 const radiusFor = mm => Math.max(5, Math.min(16, 5 + Math.sqrt(mm)*0.8));
 
+// --- Indice fungaiolo --------------------------------------------------------
+// Scala colore (verde) per il punteggio 0-100.
+const FSCALE = [
+  {min:0,c:"#e7ebee",lbl:"0 – 20 · scarso"},
+  {min:20,c:"#dbe9cf",lbl:"20 – 40 · basso"},
+  {min:40,c:"#aed58f",lbl:"40 – 60 · discreto"},
+  {min:60,c:"#6fbb4e",lbl:"60 – 75 · buono"},
+  {min:75,c:"#2f8f2f",lbl:"75 – 90 · ottimo"},
+  {min:90,c:"#14611c",lbl:"90 – 100 · ideale"}
+];
+const fungColor = s => { let c=FSCALE[0].c; for(const x of FSCALE) if(s>=x.min) c=x.c; return c; };
+const fungRadius = s => Math.max(6, Math.min(15, 6 + s/9));
+const IDEAL = 75; // soglia "condizione ideale"
+
+// Punteggio da pioggia cumulata (15gg) + giorni dall'ultima pioggia significativa.
+function fungIndex(st){
+  if(!D.date || !st.v) return null;
+  const n = D.date.length;
+  let rain15=0, cnt=0;
+  for(let k=0;k<15 && k<n;k++){ const x=st.v[n-1-k]; if(x!=null){ rain15+=x; cnt++; } }
+  if(cnt < 8) return null;                       // copertura insufficiente
+  let dsl=null;                                  // giorni dall'ultima pioggia >= 3mm
+  for(let k=0;k<n;k++){ const x=st.v[n-1-k]; if(x!=null && x>=3){ dsl=k; break; } }
+  // componente pioggia: ideale ~30-90 mm in 15 giorni
+  let rainC;
+  if(rain15<=5) rainC=0;
+  else if(rain15<30) rainC=(rain15-5)/25*0.8;
+  else if(rain15<=90) rainC=0.8+(rain15-30)/60*0.2;
+  else rainC=1;
+  // componente tempismo: finestra di fruttificazione ~4-10 giorni dopo la pioggia
+  let timeC;
+  if(dsl==null) timeC=0;
+  else if(dsl<=1) timeC=0.25;
+  else if(dsl<=3) timeC=0.7;
+  else if(dsl<=10) timeC=1;
+  else if(dsl<=16) timeC=0.6;
+  else if(dsl<=24) timeC=0.3;
+  else timeC=0.1;
+  const score = Math.round(rainC*timeC*100);
+  return { score, rain15: Math.round(rain15*10)/10, dsl };
+}
+
 const map = L.map('map',{zoomControl:true}).setView([43.4,11.05],8);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
 const layer = L.layerGroup().addTo(map);
 const markerByKey = {};
 let firstRender = true;
+let mode = 'mm';   // 'mm' | 'fung'
 
-(function(){const el=document.getElementById('legend');SCALE.slice().reverse().forEach(s=>{const d=document.createElement('div');d.className='item';d.innerHTML=`<span class="sw" style="background:${s.c}"></span><span>${s.lbl} mm</span>`;el.appendChild(d);});})();
+function buildLegend(){
+  const el=document.getElementById('legend'); el.innerHTML='';
+  const src = mode==='fung' ? FSCALE : SCALE;
+  src.slice().reverse().forEach(s=>{
+    const d=document.createElement('div');d.className='item';
+    const lbl = mode==='fung' ? s.lbl : (s.lbl+' mm');
+    d.innerHTML=`<span class="sw" style="background:${s.c}"></span><span>${lbl}</span>`;
+    el.appendChild(d);
+  });
+  document.getElementById('legendTitle').textContent = mode==='fung' ? '🍄 Legenda (indice 0–100)' : '💧 Legenda (mm cumulati)';
+}
 
 // popola filtro province
 (function(){const sel=document.getElementById('prov');const provs=[...new Set(D.stazioni.map(s=>s.prov))].sort();provs.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=`${PROV_NAMI[p]||p} (${p})`;sel.appendChild(o);});})();
@@ -219,34 +305,65 @@ let currentGetMM=(st)=>st.mm["30"], currentLabel="ultimi 30 giorni";
 function render(){
   layer.clearLayers();
   const pf=document.getElementById('prov').value;
-  const rows = D.stazioni
-    .filter(s=>!pf || s.prov===pf)
-    .map(st=>({...st, val:currentGetMM(st)}))
-    .filter(r=>r.val!=null);
+  const isF = mode==='fung';
+  let rows;
+  if(isF){
+    rows = D.stazioni.filter(s=>!pf || s.prov===pf)
+      .map(st=>{ const f=fungIndex(st); return f? {...st, val:f.score, rain15:f.rain15, dsl:f.dsl} : null; })
+      .filter(Boolean);
+  }else{
+    rows = D.stazioni.filter(s=>!pf || s.prov===pf)
+      .map(st=>({...st, val:currentGetMM(st)}))
+      .filter(r=>r.val!=null);
+  }
   if(!rows.length){document.getElementById('rank').innerHTML='';return;}
+  const colF = isF? fungColor : colorFor;
+  const radF = isF? fungRadius : radiusFor;
   const pts=[];
-  const top30=new Set(rows.slice().sort((a,b)=>b.val-a.val).slice(0,30).map(r=>r.nome+'|'+r.prov));
+  const topN=new Set(rows.slice().sort((a,b)=>b.val-a.val).slice(0,30).map(r=>r.nome+'|'+r.prov));
   rows.forEach(r=>{
     const key=r.nome+'|'+r.prov;
-    const lab=top30.has(key);
-    const m=L.circleMarker([r.lat,r.lon],{radius: lab?Math.max(radiusFor(r.val),11):radiusFor(r.val),color:"#0f2540",weight:1,fillColor:colorFor(r.val),fillOpacity:.92}).addTo(layer);
+    const ideal = isF && r.val>=IDEAL;
+    const lab=topN.has(key);
+    const m=L.circleMarker([r.lat,r.lon],{
+      radius: lab?Math.max(radF(r.val),11):radF(r.val),
+      color: ideal? "#7a5300" : "#0f2540",
+      weight: ideal? 3 : 1,
+      fillColor: colF(r.val), fillOpacity:.92
+    }).addTo(layer);
     if(lab){
       m.bindTooltip(String(Math.round(r.val)),{permanent:true,direction:"center",className:"lab-in"});
     }else{
-      m.bindTooltip(`${r.nome}: ${r.val} mm`,{direction:"top",className:"lab",offset:[0,-4]});
+      m.bindTooltip(`${r.nome}: ${isF? r.val+' 🍄' : r.val+' mm'}`,{direction:"top",className:"lab",offset:[0,-4]});
     }
-    m.bindPopup(`<b>${r.nome}</b> <small>(${r.prov})</small><br>Comune: ${r.com}<br>💧 <b>${r.val} mm</b> — ${currentLabel}<br>⛰ Quota: ${r.q} m`);
+    if(isF){
+      const dslTxt = r.dsl==null? '—' : (r.dsl==0?'oggi/ieri':`${r.dsl} gg fa`);
+      m.bindPopup(`<b>${r.nome}</b> <small>(${r.prov})</small><br>Comune: ${r.com}<br>🍄 Indice: <b>${r.val}/100</b>${r.val>=IDEAL?' — <b style="color:#2f8f2f">ideale</b>':''}<br>💧 Pioggia 15 gg: ${r.rain15} mm<br>⏱ Ultima pioggia: ${dslTxt}<br>⛰ Quota: ${r.q} m`);
+    }else{
+      m.bindPopup(`<b>${r.nome}</b> <small>(${r.prov})</small><br>Comune: ${r.com}<br>💧 <b>${r.val} mm</b> — ${currentLabel}<br>⛰ Quota: ${r.q} m`);
+    }
     markerByKey[key]=m; pts.push([r.lat,r.lon]);
   });
   const vals=rows.map(r=>r.val);
   document.getElementById('stCount').textContent=rows.length;
-  document.getElementById('stMax').textContent=Math.max(...vals).toFixed(0);
-  document.getElementById('stMean').textContent=(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(0);
-  document.getElementById('stMin').textContent=Math.min(...vals).toFixed(0);
+  if(isF){
+    document.getElementById('stMax').textContent=Math.max(...vals);
+    document.getElementById('stMean').textContent=(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(0);
+    document.getElementById('stMin').textContent=rows.filter(r=>r.val>=IDEAL).length;
+    document.getElementById('lMax').textContent='Max';
+    document.getElementById('lMin').textContent='Ideali';
+  }else{
+    document.getElementById('stMax').textContent=Math.max(...vals).toFixed(0);
+    document.getElementById('stMean').textContent=(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(0);
+    document.getElementById('stMin').textContent=Math.min(...vals).toFixed(0);
+    document.getElementById('lMax').textContent='Max';
+    document.getElementById('lMin').textContent='Min';
+  }
   const ol=document.getElementById('rank');ol.innerHTML='';
-  rows.slice().sort((a,b)=>b.val-a.val).forEach((r,i)=>{
+  document.getElementById('rankTitle').textContent = isF? '🏆 Migliori zone (indice)' : '🏆 Classifica';
+  rows.slice().sort((a,b)=>b.val-a.val).slice(0,40).forEach((r,i)=>{
     const li=document.createElement('li');
-    li.innerHTML=`<span class="pos">${i+1}</span><span class="dot" style="background:${colorFor(r.val)}"></span><span class="nm">${r.nome}</span><span class="pv">${r.prov}</span><span class="mm">${r.val}</span>`;
+    li.innerHTML=`<span class="pos">${i+1}</span><span class="dot" style="background:${colF(r.val)}"></span><span class="nm">${r.nome}</span><span class="pv">${r.prov}</span><span class="mm">${r.val}</span>`;
     li.onclick=()=>{map.setView([r.lat,r.lon],11);markerByKey[r.nome+'|'+r.prov].openPopup();};
     ol.appendChild(li);
   });
@@ -255,30 +372,57 @@ function render(){
   updateBars(rows);
 }
 
-/* ---- Istogramma: prime 10 stazioni nel periodo selezionato ---- */
+/* ---- Pannello fisso: zone ideali in provincia di Firenze ---- */
+function renderFungFI(){
+  const ol=document.getElementById('fungFI'); ol.innerHTML='';
+  const rows = D.stazioni.filter(s=>s.prov==='FI')
+    .map(st=>{ const f=fungIndex(st); return f? {...st, val:f.score, dsl:f.dsl} : null; })
+    .filter(Boolean)
+    .sort((a,b)=>b.val-a.val);
+  const top = rows.slice(0,6);
+  if(!top.length){ document.getElementById('fungFIhint').textContent='Dati insufficienti per il calcolo.'; return; }
+  top.forEach(r=>{
+    const li=document.createElement('li');
+    li.innerHTML=`<span class="dot" style="background:${fungColor(r.val)}"></span><span class="nm">${r.nome}</span><span class="cm">${r.com||''}</span><span class="sc">${r.val}</span>`;
+    li.onclick=()=>{ if(mode!=='fung'){setMode('fung');} map.setView([r.lat,r.lon],11); const m=markerByKey[r.nome+'|'+r.prov]; if(m) m.openPopup(); };
+    ol.appendChild(li);
+  });
+  const nIdeal = rows.filter(r=>r.val>=IDEAL).length;
+  document.getElementById('fungFIhint').innerHTML = nIdeal>0
+    ? `<b style="color:#2f8f2f">${nIdeal} zone</b> in condizione ideale ora in provincia di Firenze.`
+    : `Nessuna zona “ideale” al momento; ecco comunque le più promettenti.`;
+}
+
+/* ---- Istogramma: prime 10 stazioni ---- */
 let barsChart=null;
 function updateBars(rows){
   if(typeof Chart==='undefined') return;
+  const isF = mode==='fung';
   const top=rows.slice().sort((a,b)=>b.val-a.val).slice(0,10);
-  document.getElementById('barsSub').textContent = `Prime 10 stazioni — ${currentLabel}`;
+  document.getElementById('barsTitle').textContent = isF? '📊 Prime 10 per indice 🍄' : '📊 Prime 10 stazioni';
+  document.getElementById('barsSub').textContent = isF? 'Indice fungaiolo — migliori 10 zone' : `Prime 10 stazioni — ${currentLabel}`;
   const labels=top.map(r=>r.nome);
   const data=top.map(r=>r.val);
-  const colors=top.map(r=>colorFor(r.val));
+  const colors=top.map(r=> isF? fungColor(r.val) : colorFor(r.val));
+  const unit = isF? '/100' : ' mm';
+  const axisT = isF? 'indice fungaiolo' : 'mm cumulati';
   if(barsChart){
     barsChart.data.labels=labels;
     barsChart.data.datasets[0].data=data;
     barsChart.data.datasets[0].backgroundColor=colors;
+    barsChart.options.scales.x.title.text=axisT;
+    barsChart.options.plugins.tooltip.callbacks.label=c=>`${c.formattedValue}${unit}`;
     barsChart.update();
     return;
   }
   barsChart=new Chart(document.getElementById('bars'),{
     type:'bar',
-    data:{labels,datasets:[{label:'mm',data,backgroundColor:colors,borderWidth:0,borderRadius:3}]},
+    data:{labels,datasets:[{label:'v',data,backgroundColor:colors,borderWidth:0,borderRadius:3}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      scales:{x:{beginAtZero:true,title:{display:true,text:'mm cumulati'},grid:{color:'#e3e9ef'}},
+      scales:{x:{beginAtZero:true,title:{display:true,text:axisT},grid:{color:'#e3e9ef'}},
         y:{ticks:{font:{size:11}},grid:{display:false}}},
       plugins:{legend:{display:false},
-        tooltip:{callbacks:{label:c=>`${c.formattedValue} mm`}}}}
+        tooltip:{callbacks:{label:c=>`${c.formattedValue}${unit}`}}}}
   });
 }
 
@@ -314,8 +458,19 @@ function showPeriod(p){
   currentLabel = p==1? "ieri" : `ultimi ${p} giorni`;
   render();
 }
+function setMode(m){
+  mode=m;
+  document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('active', b.dataset.m===m));
+  document.getElementById('periodBlock').classList.toggle('dim', m==='fung');
+  document.getElementById('modeHint').innerHTML = m==='fung'
+    ? 'Punteggio 0–100 da pioggia degli ultimi 15 giorni e giorni trascorsi dall’ultima pioggia. Verde scuro = condizioni ideali ora.'
+    : 'Colore per pioggia cumulata nel periodo scelto.';
+  buildLegend();
+  render();
+}
+document.querySelectorAll('#modes button').forEach(btn=>{ btn.onclick=()=>setMode(btn.dataset.m); });
 document.querySelectorAll('#periods button').forEach(btn=>{
-  btn.onclick=()=>{document.querySelectorAll('#periods button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');showPeriod(+btn.dataset.p);};
+  btn.onclick=()=>{ if(mode!=='mm') setMode('mm'); document.querySelectorAll('#periods button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');showPeriod(+btn.dataset.p);};
 });
 document.getElementById('prov').onchange=render;
 
@@ -328,6 +483,7 @@ if(hasDaily){
   btnCustom.onclick=()=>{
     const s=document.getElementById('d1').value,e=document.getElementById('d2').value;
     if(!s||!e||s>e){alert("Intervallo non valido");return;}
+    if(mode!=='mm') setMode('mm');
     document.querySelectorAll('#periods button').forEach(b=>b.classList.remove('active'));
     currentGetMM=(st)=>sumCustom(st,s,e); currentLabel=`${s} → ${e}`; render();
   };
@@ -340,8 +496,16 @@ if(!D || !D.stazioni || !D.stazioni.length){
   fail("Dati non trovati. Tieni dati.js nella stessa cartella di index.html.");
 }else{
   document.getElementById('updDate').textContent = D.ultimo_giorno ? D.ultimo_giorno.split('-').reverse().join('/') : '—';
+  buildLegend();
+  if(!hasDaily){ document.querySelector('#modes button[data-m="fung"]').disabled=true; document.getElementById('fungFIblock').style.display='none'; }
+  else { renderFungFI(); }
   showPeriod(30);
   initRadar();
+}
+
+/* ---- PWA: installabile + offline ---- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }
 </script>
 </body>
