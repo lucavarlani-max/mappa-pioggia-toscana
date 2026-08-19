@@ -1,0 +1,16 @@
+{
+  "name": "Mappa Pluviometrica Toscana",
+  "short_name": "Piogge Toscana",
+  "description": "Precipitazioni reali dei pluviometri SIR in Toscana e indice fungaiolo. Per pianificare le uscite funghi.",
+  "lang": "it",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#eef2f6",
+  "theme_color": "#1b3f6e",
+  "icons": [
+    { "src": "logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
