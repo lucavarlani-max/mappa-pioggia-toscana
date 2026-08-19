@@ -74,11 +74,22 @@ def abs_url(sd):
 
 
 def channel_years(ch):
-    """Elenco anni disponibili per un canale di misura."""
+    """Elenco anni disponibili per un canale di misura.
+    Il SIR puo' restituire "Anni" in piu' formati:
+      [["2011", ..., "2026"]]      (lista dentro lista) - formato attuale
+      [{"0":"2011", ...}]          (lista con dict)      - formato storico
+      ["2011", ..., "2026"]        (lista piatta)
+    Li gestiamo tutti."""
     a = ch.get("Anni")
-    if isinstance(a, list) and a and isinstance(a[0], dict):
-        return {str(v) for v in a[0].values()}
-    return set()
+    if not isinstance(a, list) or not a:
+        return set()
+    inner = a[0]
+    if isinstance(inner, dict):
+        return {str(v) for v in inner.values()}
+    if isinstance(inner, list):
+        return {str(v) for v in inner}
+    # lista piatta di stringhe
+    return {str(v) for v in a}
 
 
 def pick_source(cons, year):
