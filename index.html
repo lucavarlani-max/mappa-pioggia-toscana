@@ -240,10 +240,16 @@ const FSCALE = [
 const fungColor = s => { let c=FSCALE[0].c; for(const x of FSCALE) if(s>=x.min) c=x.c; return c; };
 const fungRadius = s => Math.max(6, Math.min(15, 6 + s/9));
 const IDEAL = 75; // soglia "condizione ideale"
+// Esclusione dai funghi: i centri urbani non sono posti da raccolta.
+// Capoluoghi di provincia + stazioni di pianura/citta' sotto una quota minima.
+const CAPOLUOGHI = new Set(["Firenze","Prato","Pistoia","Lucca","Massa","Carrara","Pisa","Livorno","Arezzo","Siena","Grosseto"]);
+const MIN_QUOTA_FUNGHI = 250; // m: sotto questa quota niente indice funghi (citta'/pianura)
+function isUrbanoFunghi(st){ return CAPOLUOGHI.has((st.com||"").trim()) || (Number(st.q)||0) < MIN_QUOTA_FUNGHI; }
 
 // Punteggio da pioggia cumulata (15gg) + giorni dall'ultima pioggia significativa.
 function fungIndex(st){
   if(!D.date || !st.v) return null;
+  if(isUrbanoFunghi(st)) return null;   // esclude capoluoghi e centri di pianura/citta'
   const n = D.date.length;
   let rain15=0, cnt=0;
   for(let k=0;k<15 && k<n;k++){ const x=st.v[n-1-k]; if(x!=null){ rain15+=x; cnt++; } }
@@ -388,9 +394,10 @@ function renderFungFI(){
     ol.appendChild(li);
   });
   const nIdeal = rows.filter(r=>r.val>=IDEAL).length;
-  document.getElementById('fungFIhint').innerHTML = nIdeal>0
+  document.getElementById('fungFIhint').innerHTML = (nIdeal>0
     ? `<b style="color:#2f8f2f">${nIdeal} zone</b> in condizione ideale ora in provincia di Firenze.`
-    : `Nessuna zona “ideale” al momento; ecco comunque le più promettenti.`;
+    : `Nessuna zona “ideale” al momento; ecco comunque le più promettenti.`)
+    + ` <span style="opacity:.8">Esclusi capoluoghi e centri sotto i 250 m.</span>`;
 }
 
 /* ---- Istogramma: prime 10 stazioni ---- */
@@ -463,7 +470,7 @@ function setMode(m){
   document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('active', b.dataset.m===m));
   document.getElementById('periodBlock').classList.toggle('dim', m==='fung');
   document.getElementById('modeHint').innerHTML = m==='fung'
-    ? 'Punteggio 0–100 da pioggia degli ultimi 15 giorni e giorni trascorsi dall’ultima pioggia. Verde scuro = condizioni ideali ora.'
+    ? 'Punteggio 0–100 da pioggia (15 gg) e giorni dall’ultima pioggia. Esclusi capoluoghi e stazioni sotto i 250 m (città/pianura). Verde scuro = ideale ora.'
     : 'Colore per pioggia cumulata nel periodo scelto.';
   buildLegend();
   render();
